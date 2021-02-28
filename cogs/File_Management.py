@@ -3,12 +3,15 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 import io
+import asyncio
+import time
 from cogs.Utility_Files.goog import Create_Service
 from cogs.Utility_Files.filetype import whatFile
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.http import MediaIoBaseDownload
 from collections import namedtuple
 
+#Import environment variables
 load_dotenv()
 DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH')
 FILE_DESTINATION = os.getenv('FILE_DESTINATION')
@@ -20,6 +23,7 @@ API_VERSION = "v3"
 SCOPE = ["https://www.googleapis.com/auth/drive"]
 call = Create_Service(CLIENT_SECRET, API_NAME, API_VERSION, SCOPE)
 
+#Stores file properties
 fileInfo = namedtuple("fileInfo", "Name ID WebViewLink Parents")
 
 #Seaches for all filenames
@@ -116,7 +120,7 @@ def searchFile(parent, filename):
 
 		#Searches for every instance of the professor name
 		while True:
-			response = call.files().list(q = f"name = '{filename}' and '{parentID}' in parents and trashed = False and mimeType != 'application/vnd.google-apps.folder'", fields = 'nextPageToken, files(id, name)', pageToken = page_token).execute()
+			response = call.files().list(q = f"name = '{filename}' and '{parentID}' in parents and trashed = False and mimeType != 'application/vnd.google-apps.folder'", fields = 'nextPageToken, files(id, name, webViewLink)', pageToken = page_token).execute()
 			for file in response.get('files', []):
 				toReturn.append(file)
 
@@ -188,11 +192,46 @@ class filemanagement(commands.Cog):
 		#If nothing was found
 		if len(matches) == 0:
 			await ctx.send("No files or folders found")
+		#If one match was found
+		elif len(matches) == 1:
+			path = ""
+			p = matches[0].get('parents')
+			Prof = searchByID(p[0])
+			if Prof != None:
+				path += Prof.Name
+				Course = searchByID(Prof.Parents[0])
+				if Course != None:
+					path = Course.Name + " -> " + path
+					exact = discord.Embed(
+						colour = discord.Colour(15454004),
+						title = Prof.Name,
+						description = f"Path: {path}"
+					)
+					exact.add_field(name = "Link", value = Course.WebViewLink, inline = False)
+				else:
+					exact = discord.Embed(
+						colour = discord.Colour(15454004),
+						title = Prof.Name,
+						description = f"Path: {path}"
+					)
+					exact.add_field(name = "Link", value = Prof.WebViewLink, inline = False)
+			else:
+				exact = discord.Embed(
+					colour = discord.Colour(15454004),
+					title = matches[0].get("name"),
+					description = "Course Folder"
+				)
+				exact.add_field(name = "Link", value = matches[0].get('webViewLink'),inline = False)
+
+			await ctx.send(embed = exact)
 		else:
+			#Embed created
 			result = discord.Embed(
 				colour= discord.Colour(15454004),
 				title = "Matches",
 			)
+
+			#Depending upon the file type, different fields will be added
 			for item in matches:
 				p = item.get('parents')
 				if p != None:
@@ -200,7 +239,7 @@ class filemanagement(commands.Cog):
 					if Prof != None:
 						Course = searchByID(Prof.Parents[0])
 						if Course != None:
-							result.add_field(name = Course.Name + " - " + Prof.Name, value = f'{item.get("name")}link: {item.get("webViewLink")}', inline = False)
+							result.add_field(name = Course.Name + " - " + Prof.Name, value = f'{item.get("name")} link: {item.get("webViewLink")}', inline = False)
 						else:
 							result.add_field(name = Prof.Name, value = f'{item.get("name")} link: {item.get("webViewLink")}', inline = False)
 					else:
@@ -249,7 +288,7 @@ class filemanagement(commands.Cog):
 				success.add_field(name = "Link:", value = link, inline = False)
 				await ctx.send(embed = success)
 
-	@commands.command()
+	@commands.command(aliases = ["attach"])
 	async def upload(self, ctx, *, path):
 		if "," not in path:
 			await ctx.send("Invalid path.")
@@ -287,6 +326,7 @@ class filemanagement(commands.Cog):
 					else:
 						await ctx.send("Invalid file type.")
 
+					await asyncio.sleep(10)
 					os.remove(FILE_DESTINATION + f'/{msg.attachments[0].filename}')
 
 				except TimeoutError:
@@ -304,25 +344,50 @@ class filemanagement(commands.Cog):
 				toDownload = searchSection(folders[0].strip(), folders[1].strip())
 				destination = toDownload[0].get('name')
 				fileToGet = searchFile(destination, folders[2].strip())
-				request = call.files().get_media(fileId = fileToGet[0].get('id'))
+				if len(fileToGet) == 0:
+					await ctx.send("File not found.")
+				else:
+					request = call.files().get_media(fileId = fileToGet[0].get('id'))
 
-				fh = io.BytesIO()
-				downloader = MediaIoBaseDownload(fd = fh, request = request)
+					fh = io.BytesIO()
+					downloader = MediaIoBaseDownload(fd = fh, request = request)
 
-				done = False
-				while not done:
-					done = downloader.next_chunk()
+					done = False
+					while not done:
+						done = downloader.next_chunk()
 
-				fh.seek(0)
+					fh.seek(0)
 
-				with open(os.path.join(fileToGet[0].get('name')), 'wb') as f:
-					f.write(fh.read())
-					f.close()
+					with open(os.path.join(fileToGet[0].get('name')), 'wb') as f:
+						f.write(fh.read())
+						f.close()
+					try:
+						file = discord.File(FILE_DESTINATION + fileToGet[0].get('name'),filename = fileToGet[0].get('name'))
+						await ctx.send(file = file)
+						file.close()
 
-				file = discord.File(FILE_DESTINATION + fileToGet[0].get('name'),filename = fileToGet[0].get('name'))
-				await ctx.send(file = file)
+						await asyncio.sleep(10)
+						os.remove(FILE_DESTINATION + fileToGet[0].get('name'))
+					except:
+						await ctx.send(f"File size is too big. You must manually download it here: {fileToGet[0].get('webViewLink')}")
 
-				os.remove(FILE_DESTINATION + msg.attachments[0].filename)
+	@commands.command(aliases = ["del"])
+	async def delete(self, ctx, *,path):
+		if "," not in path:
+			await ctx.send("Invalid path.")
+		else:
+			folders = path.split(",")
+			if len(folders) != 3:
+				await ctx.send("Invalid path.")
+			else:
+				toDelete = searchSection(folders[0].strip(), folders[1].strip())
+				destination = toDelete[0].get('name')
+				fileToGet = searchFile(destination, folders[2].strip())
+				if len(fileToGet) == 0:
+					await ctx.send("File not found.")
+				else:
+					request = call.files().delete(fileId = fileToGet[0].get('id')).execute()
+					await ctx.message.add_reaction("✅")
 
 
 #PUT THIS AT THE END OF YOUR PYTHON FILE
