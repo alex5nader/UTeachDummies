@@ -61,7 +61,7 @@ class CleanUpWrapper(discord.abc.Messageable):
 		return self.wrapped.history(limit=limit, before=before, after=after, around=around, oldest_first=oldest_first)
 
 
-class Roles(commands.Cog):
+class Groups(commands.Cog):
 	def __init__(self, bot: commands.Bot, firebase: firebase_admin.App):
 		self.bot = bot
 
@@ -123,12 +123,12 @@ class Roles(commands.Cog):
 
 	@commands.group()
 	@guild_only()
-	async def roles(self, ctx: commands.Context):
+	async def groups(self, ctx: commands.Context):
 		if ctx.invoked_subcommand is None:
 			# TODO roles help message
 			await ctx.send('this should be a help message')
 
-	@roles.command()
+	@groups.command()
 	async def create(self, ctx: commands.Context, *, category_name: Optional[str]):
 		to_clean_up = [ctx.message]
 
@@ -245,7 +245,7 @@ class Roles(commands.Cog):
 			'sub_channel': str(subscription_channel.id),
 		})
 
-	@roles.command()
+	@groups.command()
 	async def delete(self, ctx: commands.Context, *, category: discord.CategoryChannel):
 		category_ref = self.firestore.collection('categories').document(str(category.id))
 		category_snap = category_ref.get()
@@ -255,6 +255,8 @@ class Roles(commands.Cog):
 			return
 
 		confirmation = await prompt_yes_no(
+			ctx.author.id,
+			ctx.bot,
 			ctx,
 			f'Are you sure you want to delete {category.name}, including all roles and channels?',
 		)
@@ -262,6 +264,8 @@ class Roles(commands.Cog):
 			await ctx.send('One minute has passed without a reply. Not Deleting.')
 			return
 		elif confirmation:
+			await self.perform_delete(ctx, category, category_ref, category_snap)
+
 			await ctx.send(f'Deleted {category.name}.')
 		else:
 			await ctx.send('Not deleting.')
@@ -295,4 +299,4 @@ def setup(bot: commands.Bot):
 	except ValueError:
 		firebase = firebase_admin.get_app()
 
-	bot.add_cog(Roles(bot, firebase))
+	bot.add_cog(Groups(bot, firebase))
