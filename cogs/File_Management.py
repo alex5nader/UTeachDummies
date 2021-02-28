@@ -184,6 +184,31 @@ class filemanagement(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
+	@commands.group()
+	async def files(self, ctx: commands.Context):
+		if ctx.invoked_subcommand is None:
+			await self.help(ctx)
+
+	@files.command()
+	async def help(self, ctx: commands.Context):
+		pfx = self.client.command_prefix
+		await ctx.send(
+			embed=discord.Embed(
+				title='Files',
+				description='Commands for managing files.\n'
+							'\n'
+							'<argument> means the argument is required.\n'
+							'Note: filename includes the extension (e.g. ".txt", ".jpeg")',
+				color=5681100,
+			)
+				.add_field(name = f"{pfx}search <filename>", value = "Finds all files and folders with the inputted name.", inline = False)
+				.add_field(name = f"{pfx}createcourse <Course Name>", value = "Creates a new course folder.", inline = False)
+				.add_field(name = f"{pfx}createprofessor <Course Name>, <Professor Name>", value = "Creates a professor inside an existing course.", inline = False)
+				.add_field(name = f"{pfx}upload <Course Name>, <Professor Name>", value = "Uploads a compatible file under 8MB to the desired professor.", inline = False)
+				.add_field(name = f"{pfx}download <Course Name>, <Professor Name>, <filename>", value = "Downloads desired file.", inline = False)
+				.add_field(name = f"{pfx}delete <Course Name>, <Professor Name>, <filename>", value = "Deletes desired file. Note: users cannot delete folders.", inline = False)
+		)
+
 	#Search for a specific file in the entire Drive
 	@commands.command(aliases = ["sf"])
 	async def searchfile(self, ctx, *, filename):

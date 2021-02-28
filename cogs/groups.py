@@ -125,8 +125,23 @@ class Groups(commands.Cog):
 	@guild_only()
 	async def groups(self, ctx: commands.Context):
 		if ctx.invoked_subcommand is None:
-			# TODO roles help message
-			await ctx.send('this should be a help message')
+			await self.help(ctx)
+
+	@groups.command()
+	async def help(self, ctx: commands.Context):
+		pfx = self.bot.command_prefix
+		await ctx.send(
+			embed=discord.Embed(
+				title='Groups',
+				description='Commands for managing groups.\n'
+							'\n'
+							'<argument> means the argument is required.\n'
+							'[argument] means the argument is optional.',
+				color=5681100
+			)
+				.add_field(name=f'{pfx}groups create [name]', value='Creates a new set of groups.', inline=False)
+				.add_field(name=f'{pfx}groups delete <name>', value='Deletes the groups named <name>.', inline=False)
+		)
 
 	@groups.command()
 	async def create(self, ctx: commands.Context, *, category_name: Optional[str]):

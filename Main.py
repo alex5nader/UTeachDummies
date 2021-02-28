@@ -6,17 +6,16 @@ from discord.ext import commands
 
 def main():
 	# Bot initialization
-	client = commands.Bot('UTD')
+	client = commands.Bot('D:')
 	client.remove_command("help")
 
 	# Help command: Update as needed
 	@client.command()
 	async def help(ctx):
-		await ctx.send(embed=discord.Embed(
-			color=4359413,
-			title='Help',
-			description='THE place for managing your UTD courses. Below is a list of commands.'
-		))
+		for cog in client.cogs.values():
+			for c in cog.walk_commands():
+				if c.name == 'help':
+					await c(ctx)
 
 	# Loads commands from other python files
 	@client.command('load')
@@ -38,8 +37,9 @@ def main():
 		if file.endswith(".py"):
 			try:
 				client.load_extension(f"cogs.{file[:-3]}")
-			except:
+			except Exception as e:
 				print(f'failed to load cog {file}')
+				print(e)
 
 	# Load environment variable (Token)
 	load_dotenv()

@@ -10,10 +10,27 @@ class Announce (commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print('Bot is online.') 
+        print('Bot is online.')
 
-    @commands.command()
+    @commands.group()
     async def announce(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await self.help(ctx)
+
+    @announce.command()
+    async def help(self, ctx):
+        pfx = self.client.command_prefix
+        await ctx.send(
+            embed=discord.Embed(
+                title='Announce',
+                description='Commands for managing announcements',
+                color=5681100,
+            )
+                .add_field(name=f'{pfx}announce create', value='Schedules an announcement', inline=False)
+        )
+
+    @announce.command()
+    async def create(self, ctx):
         # check to make sure that the message being stored is from the person who initiated the command
         def same_author_and_channel(message):
             return message.author == ctx.author and message.channel == ctx.channel
