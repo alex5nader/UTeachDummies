@@ -14,7 +14,6 @@ from cogs.Utility_Files.filetype import whatFile
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.http import MediaIoBaseDownload
 
-
 #Import environment variables
 load_dotenv()
 DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH')
