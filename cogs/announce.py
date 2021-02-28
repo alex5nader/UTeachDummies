@@ -50,7 +50,7 @@ class Announce (commands.Cog):
         time_string = time_entry.content
         hour, minute = map(int, time_string.split(':'))
         timeToMsg = datetime.time(hour, minute)
-        timeToMsg = timeToMsg.strftime("%I:%M") # format the time for readability
+        timeToMsg = timeToMsg.strftime("%H:%M") # format the time for readability
         await ctx.send(f'Your announcement will be sent in <#{msgChannel}> at {timeToMsg} on {dateToMsg}.')
 
 def setup(client):
